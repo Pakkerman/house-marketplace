@@ -7,13 +7,13 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from 'firebase/storage'
-import axios from 'axios'
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore'
 import { db } from '../firebase.config'
 import { v4 as uuidv4 } from 'uuid'
 
 import Spinner from '../components/Spinner'
 import { toast } from 'react-toastify'
+import { addressToGeocode } from '../APIs/fetchGeocode'
 
 function CreateListing() {
   const API_KEY = process.env.REACT_APP_X_RAPIDAPI_KEY
@@ -95,41 +95,46 @@ function CreateListing() {
     // FETCH GEOCODING FROM API
     if (geolocationEnabled) {
       try {
-        const options = {
-          method: 'GET',
-          url: 'https://trueway-geocoding.p.rapidapi.com/Geocode',
-          params: {
-            address: address,
-            language: 'en',
-          },
-          headers: {
-            'X-RapidAPI-Key': API_KEY,
-            'X-RapidAPI-Host': HOST_KEY,
-          },
-        }
-        const response = await axios.request(options)
-        const {
-          address: APIResponseAddress,
-          location: { lng, lat },
-        } = response.data.results[0]
-
+        const { lng, lat } = await addressToGeocode(address)
         geolocation.lat = lat ?? 0
         geolocation.lng = lng ?? 0
-
-        // Undefined Address or wrong address
-        if (response.data.results.lenght === 0) {
-          setLoading(false)
-          return toast.error('Please Enter the Correct Address')
-        }
       } catch (error) {
-        console.log(error)
-        toast.error('Can Not Get Location Data')
-        return
+        return toast.error('Could Not Get Geocode')
       }
     }
 
+    // UPLOAD IMAGE
+    const imgUrls = await Promise.all(
+      [...images].map((image) => storeImage(image))
+    ).catch(() => {
+      setLoading(false)
+      toast.error('Image upload failed')
+      return
+    })
+
+    // Update Form Data to Database
+    const formDataCopy = {
+      ...formData,
+      geolocation,
+      imgUrls,
+      timestamp: serverTimestamp(),
+    }
+
+    formDataCopy.location = address
+    delete formDataCopy.images
+    delete formDataCopy.address
+    !formDataCopy.offer && delete formDataCopy.discountedPrice
+    console.log(formDataCopy)
+
+    const docRef = await addDoc(collection(db, 'listings'), formDataCopy)
+
+    // FINAL STEP AFTER ALL UPLOADED
+    setLoading(false)
+    toast.success('Listing Created!')
+    navigate(`/category/${formDataCopy.type}/${docRef.id}`)
+
     // Upload Images to firebase
-    const storeImage = async (image) => {
+    async function storeImage(image) {
       // storeImage returns a promise which upload one image at a time
       return new Promise((resolve, reject) => {
         // from google firestore
@@ -164,35 +169,6 @@ function CreateListing() {
         )
       })
     }
-
-    const imgUrls = await Promise.all(
-      [...images].map((image) => storeImage(image))
-    ).catch(() => {
-      setLoading(false)
-      toast.error('Image upload failed')
-      return
-    })
-
-    // Update Form Data to Database
-    const formDataCopy = {
-      ...formData,
-      geolocation,
-      imgUrls,
-      timestamp: serverTimestamp(),
-    }
-
-    formDataCopy.location = address
-    delete formDataCopy.images
-    delete formDataCopy.address
-    // location && (formDataCopy.location = location)
-    !formDataCopy.offer && delete formDataCopy.discountedPrice
-    console.log(formDataCopy)
-
-    const docRef = await addDoc(collection(db, 'listings'), formDataCopy)
-
-    setLoading(false)
-    toast.success('Listing Created!')
-    navigate(`/category/${formDataCopy.type}/${docRef.id}`)
   }
 
   // FORM STATE CHANGE

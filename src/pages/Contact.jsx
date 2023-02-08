@@ -8,7 +8,6 @@ function Contact() {
   const [message, setMessage] = useState('')
   const [landlord, setLandlord] = useState(null)
   const [searchParams, setSearchParams] = useSearchParams()
-
   const params = useParams()
 
   useEffect(() => {
@@ -49,9 +48,11 @@ function Contact() {
                 ></textarea>
               </div>
               <a
-                href={`mailto:${landlord.email}?Subject=${searchParams.get(
-                  'listingName'
-                )}&body=${message}`}
+                href={mailto(
+                  landlord.mail,
+                  searchParams.get('listingName'),
+                  message
+                )}
               >
                 <button type="button" className="primaryButton">
                   Send Message
@@ -63,6 +64,10 @@ function Contact() {
       )}
     </div>
   )
+}
+
+function mailto(email, listingName, message) {
+  return `mailto:${email}?Subject=${listingName}&body=${message}`
 }
 
 export default Contact
