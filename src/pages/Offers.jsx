@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+
 import {
   collection,
   getDocs,
@@ -17,7 +17,7 @@ import ListingItem from '../components/ListingItem'
 function Offers() {
   const [listings, setListings] = useState(null)
   const [loading, setLoading] = useState(true)
-  const params = useParams()
+  const [lastFetchedListings, setLastFetchedListings] = useState('123')
   useEffect(() => {
     const fetchListings = async () => {
       try {
@@ -28,10 +28,12 @@ function Offers() {
           listingsRef,
           where('offer', '==', true),
           orderBy('timestamp', 'desc'),
-          limit(10)
+          limit(2)
         )
         // execute query
         const querySnap = await getDocs(q)
+
+        setLastFetchedListings(querySnap.docs[querySnap.docs.length - 1])
 
         const listings = []
 
@@ -50,6 +52,27 @@ function Offers() {
 
     fetchListings()
   }, [])
+
+  const onFetchMore = async () => {
+    const q = query(
+      collection(db, 'listings'),
+      where('offer', '==', true),
+      orderBy('timestamp', 'desc'),
+      startAfter(lastFetchedListings),
+      limit(10)
+    )
+    const documentSnapshot = await getDocs(q)
+    let listings = []
+    documentSnapshot.forEach((doc) => {
+      return listings.push({
+        id: doc.id,
+        data: doc.data(),
+      })
+    })
+
+    setListings((prev) => [...prev, ...listings])
+  }
+
   return (
     <div className="category">
       <header>
@@ -70,6 +93,11 @@ function Offers() {
               ))}
             </ul>
           </main>
+          {lastFetchedListings && (
+            <p className="loadMore" onClick={onFetchMore}>
+              Load More
+            </p>
+          )}
         </>
       ) : (
         <p>There are no offers currently</p>

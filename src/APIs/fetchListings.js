@@ -10,7 +10,7 @@ import {
 import { db } from '../firebase.config'
 import { toast } from 'react-toastify'
 
-const fetchListings = async (params) => {
+const fetchListings = async (params, startAfter) => {
   try {
     // get Firestore reference
     const listingsRef = collection(db, 'listings')

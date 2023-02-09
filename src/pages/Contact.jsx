@@ -36,7 +36,7 @@ function Contact() {
             <form className="messageForm">
               <div className="messageDiv">
                 <label htmlFor="message" className="messageLabel">
-                  Message
+                  Your Message
                 </label>
                 <textarea
                   name="message"
@@ -44,7 +44,7 @@ function Contact() {
                   className="textarea"
                   value={message}
                   onChange={onChange}
-                  placeholder=""
+                  placeholder="Message"
                 ></textarea>
               </div>
               <a
